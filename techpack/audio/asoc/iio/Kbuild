@@ -5,7 +5,7 @@ else
 endif
 
 ifeq ($(KERNEL_BUILD), 1)
-	AUDIO_BLD_DIR := $(shell pwd)/kernel/msm-5.4
+	AUDIO_BLD_DIR := $(srctree)
 	AUDIO_ROOT := $(AUDIO_BLD_DIR)/techpack/audio
 endif
 
