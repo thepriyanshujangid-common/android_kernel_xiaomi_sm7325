@@ -1434,9 +1434,6 @@ static int goodix_ts_input_dev_config(struct goodix_ts_core *core_data)
 		return -ENOMEM;
 	}
 
-	core_data->input_dev = input_dev;
-	input_set_drvdata(input_dev, core_data);
-
 	input_dev->name = GOODIX_CORE_DRIVER_NAME;
 	input_dev->phys = GOOIDX_INPUT_PHYS;
 	input_dev->id.product = 0xDEAD;
@@ -1470,6 +1467,9 @@ static int goodix_ts_input_dev_config(struct goodix_ts_core *core_data)
 		return r;
 	}
 
+	core_data->input_dev = input_dev;
+	input_set_drvdata(input_dev, core_data);
+
 	return 0;
 }
 
@@ -1484,9 +1484,6 @@ static int goodix_ts_pen_dev_config(struct goodix_ts_core *core_data)
 		ts_err("Failed to allocated pen device");
 		return -ENOMEM;
 	}
-
-	core_data->pen_dev = pen_dev;
-	input_set_drvdata(pen_dev, core_data);
 
 	pen_dev->name = GOODIX_PEN_DRIVER_NAME;
 	pen_dev->id.product = 0xDEAD;
@@ -1520,6 +1517,9 @@ static int goodix_ts_pen_dev_config(struct goodix_ts_core *core_data)
 		return r;
 	}
 
+	core_data->pen_dev = pen_dev;
+	input_set_drvdata(pen_dev, core_data);
+
 	return 0;
 }
 
@@ -1528,7 +1528,6 @@ void goodix_ts_input_dev_remove(struct goodix_ts_core *core_data)
 	if (!core_data->input_dev)
 		return;
 	input_unregister_device(core_data->input_dev);
-	input_free_device(core_data->input_dev);
 	core_data->input_dev = NULL;
 }
 
@@ -1537,7 +1536,6 @@ void goodix_ts_pen_dev_remove(struct goodix_ts_core *core_data)
 	if (!core_data->pen_dev)
 		return;
 	input_unregister_device(core_data->pen_dev);
-	input_free_device(core_data->pen_dev);
 	core_data->pen_dev = NULL;
 }
 
@@ -2308,29 +2306,31 @@ static int goodix_ts_remove(struct platform_device *pdev)
 	struct goodix_ts_hw_ops *hw_ops = core_data->hw_ops;
 	struct goodix_ts_esd *ts_esd = &core_data->ts_esd;
 
-	goodix_ts_unregister_notifier(&core_data->ts_notifier);
-	goodix_tools_exit();
-
 	if (core_data->init_stage >= CORE_INIT_STAGE2) {
-		gesture_module_exit();
-		inspect_module_exit();
 		hw_ops->irq_enable(core_data, false);
+		inspect_module_exit();
+		gesture_module_exit();
+
+		core_module_prob_sate = CORE_MODULE_REMOVED;
+		if (atomic_read(&core_data->ts_esd.esd_on))
+			goodix_ts_esd_off(core_data);
+
+		goodix_ts_procfs_exit(core_data);
+		goodix_ts_sysfs_exit(core_data);
 #if defined(CONFIG_DRM)
 		if (core_data->notifier_cookie)
 			panel_event_notifier_unregister(core_data->notifier_cookie);
 #endif
-		core_module_prob_sate = CORE_MODULE_REMOVED;
-		if (atomic_read(&core_data->ts_esd.esd_on))
-			goodix_ts_esd_off(core_data);
-		goodix_ts_unregister_notifier(&ts_esd->esd_notifier);
+		goodix_ts_pen_dev_remove(core_data);
+		goodix_ts_input_dev_remove(core_data);
 
 		goodix_fw_update_uninit();
-		goodix_ts_input_dev_remove(core_data);
-		goodix_ts_pen_dev_remove(core_data);
-		goodix_ts_sysfs_exit(core_data);
-		goodix_ts_procfs_exit(core_data);
-		goodix_ts_power_off(core_data);
 	}
+
+	goodix_tools_exit();
+	goodix_ts_unregister_notifier(&ts_esd->esd_notifier);
+	goodix_ts_unregister_notifier(&core_data->ts_notifier);
+	goodix_ts_power_off(core_data);
 
 	return 0;
 }
