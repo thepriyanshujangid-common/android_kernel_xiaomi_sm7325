@@ -282,10 +282,12 @@ static int qcom_dload_restart(struct notifier_block *this, unsigned long event,
 {
 	char *cmd = ptr;
 
+#ifndef CONFIG_MACH_XIAOMI
 	if (cmd && !strcmp(cmd, "edl")) {
 		set_download_mode(QCOM_DOWNLOAD_EDL);
 		reboot_mode = REBOOT_WARM;
 	}
+#endif
 
 	return NOTIFY_OK;
 }
