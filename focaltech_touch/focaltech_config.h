@@ -170,12 +170,6 @@
 #define FTS_DEBUG_EN                            0
 
 /*
- * Linux MultiTouch Protocol
- * 1: Protocol B(default), 0: Protocol A
- */
-#define FTS_MT_PROTOCOL_B_EN                    1
-
-/*
  * Report Pressure in multitouch
  * 1:enable(default),0:disable
 */
@@ -192,12 +186,6 @@
  * default: disable
  */
 #define FTS_ESDCHECK_EN                         0
-
-/*
- * Production test enable
- * 1: enable, 0:disable(default)
- */
-#define FTS_TEST_EN                             0
 
 /*
  * Pinctrl enable

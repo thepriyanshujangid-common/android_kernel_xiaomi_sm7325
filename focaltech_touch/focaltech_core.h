@@ -190,40 +190,6 @@ enum trusted_touch_tvm_states {
 	TRUSTED_TOUCH_TVM_STATE_MAX
 };
 
-#ifdef CONFIG_FTS_TRUSTED_TOUCH
-#define TRUSTED_TOUCH_MEM_LABEL 0x7
-
-#define TOUCH_RESET_GPIO_BASE 0xF114000
-#define TOUCH_RESET_GPIO_SIZE 0x1000
-#define TOUCH_RESET_GPIO_OFFSET 0x4
-#define TOUCH_INTR_GPIO_BASE 0xF115000
-#define TOUCH_INTR_GPIO_SIZE 0x1000
-#define TOUCH_INTR_GPIO_OFFSET 0x8
-
-#define TRUSTED_TOUCH_EVENT_LEND_FAILURE -1
-#define TRUSTED_TOUCH_EVENT_LEND_NOTIFICATION_FAILURE -2
-#define TRUSTED_TOUCH_EVENT_ACCEPT_FAILURE -3
-#define	TRUSTED_TOUCH_EVENT_FUNCTIONAL_FAILURE -4
-#define	TRUSTED_TOUCH_EVENT_RELEASE_FAILURE -5
-#define	TRUSTED_TOUCH_EVENT_RECLAIM_FAILURE -6
-#define	TRUSTED_TOUCH_EVENT_I2C_FAILURE -7
-#define	TRUSTED_TOUCH_EVENT_NOTIFICATIONS_PENDING 5
-
-struct trusted_touch_vm_info {
-	enum gh_irq_label irq_label;
-	enum gh_mem_notifier_tag mem_tag;
-	enum gh_vm_names vm_name;
-	const char *trusted_touch_type;
-	u32 hw_irq;
-	gh_memparcel_handle_t vm_mem_handle;
-	u32 *iomem_bases;
-	u32 *iomem_sizes;
-	u32 iomem_list_size;
-	void *mem_cookie;
-	atomic_t vm_state;
-};
-#endif
-
 struct fts_ts_data {
 	struct i2c_client *client;
 	struct spi_device *spi;
@@ -284,22 +250,6 @@ struct fts_ts_data {
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	struct early_suspend early_suspend;
 #endif
-
-#ifdef CONFIG_FTS_TRUSTED_TOUCH
-	struct trusted_touch_vm_info *vm_info;
-	struct mutex fts_clk_io_ctrl_mutex;
-	const char *touch_environment;
-	struct completion trusted_touch_powerdown;
-	struct clk *core_clk;
-	struct clk *iface_clk;
-	atomic_t trusted_touch_initialized;
-	atomic_t trusted_touch_enabled;
-	atomic_t trusted_touch_transition;
-	atomic_t trusted_touch_event;
-	atomic_t trusted_touch_abort_status;
-	atomic_t delayed_vm_probe_pending;
-	atomic_t trusted_touch_mode;
-#endif
 };
 
 enum _FTS_BUS_TYPE {
@@ -350,12 +300,6 @@ int fts_esdcheck_suspend(void);
 int fts_esdcheck_resume(void);
 #endif
 
-/* Production test */
-#if FTS_TEST_EN
-int fts_test_init(struct fts_ts_data *ts_data);
-int fts_test_exit(struct fts_ts_data *ts_data);
-#endif
-
 /* Point Report Check*/
 #if FTS_POINT_REPORT_CHECK_EN
 int fts_point_report_check_init(struct fts_ts_data *ts_data);
@@ -381,9 +325,4 @@ void fts_irq_disable(void);
 void fts_irq_enable(void);
 int fts_ts_handle_trusted_touch_pvm(struct fts_ts_data *ts_data, int value);
 int fts_ts_handle_trusted_touch_tvm(struct fts_ts_data *ts_data, int value);
-#ifdef CONFIG_FTS_TRUSTED_TOUCH
-#ifdef CONFIG_ARCH_QTI_VM
-void fts_ts_trusted_touch_tvm_i2c_failure_report(struct fts_ts_data *fts_data);
-#endif
-#endif
 #endif /* __LINUX_FOCALTECH_CORE_H__ */
