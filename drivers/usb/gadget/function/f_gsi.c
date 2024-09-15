@@ -501,12 +501,8 @@ static int ipa_connect_channels(struct gsi_data_port *d_port)
 	struct ipa_req_chan_out_params ipa_in_channel_out_params;
 	struct ipa_req_chan_out_params ipa_out_channel_out_params;
 
-	if (gsi->prot_id == IPA_USB_RMNET) {
+	if (gsi->prot_id == IPA_USB_RMNET)
 		d_port->in_request.use_tcm_mem = gsi->rmnet_use_tcm_mem;
-		/* override needed for moving from LLCC TCM to DDR memory */
-		d_port->in_request.buf_len = GSI_IN_RMNET_BUFF_SIZE;
-		d_port->in_request.num_bufs = GSI_NUM_IN_RMNET_BUFFERS;
-	}
 
 	ret = usb_gsi_ep_op(d_port->in_ep, &d_port->in_request,
 			GSI_EP_OP_PREPARE_TRBS);
@@ -3009,15 +3005,6 @@ static void gsi_get_ether_addr(const char *str, u8 *dev_addr)
 	}
 	random_ether_addr(dev_addr);
 }
-
-void rmnet_gsi_update_in_buffer_mem_type(struct usb_function *f, bool use_tcm)
-{
-	struct f_gsi *gsi = func_to_gsi(f);
-
-	if (gsi && gsi->prot_id == IPA_USB_RMNET)
-		gsi->rmnet_use_tcm_mem = use_tcm;
-}
-EXPORT_SYMBOL(rmnet_gsi_update_in_buffer_mem_type);
 
 static int gsi_bind(struct usb_configuration *c, struct usb_function *f)
 {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LINUX_MSM_GENI_SE
@@ -51,7 +52,6 @@ enum se_protocol_types {
  * @geni_gpi_sleep:	Handle to the sleep pinctrl state.
  * @num_clk_levels:	Number of valid clock levels in clk_perf_tbl.
  * @clk_perf_tbl:	Table of clock frequency input to Serial Engine clock.
- * @skip_bw_vote:	Used for PMIC over i2c use case to skip the BW vote.
  */
 struct se_geni_rsc {
 	struct device *ctrl_dev;
@@ -74,7 +74,7 @@ struct se_geni_rsc {
 	int	clk_freq_out;
 	unsigned int num_clk_levels;
 	unsigned long *clk_perf_tbl;
-	bool skip_bw_vote;
+	bool is_list_add;
 };
 
 #define PINCTRL_DEFAULT	"default"
@@ -131,6 +131,7 @@ struct se_geni_rsc {
 #define SE_IRQ_EN			(0xE1C)
 #define SE_HW_PARAM_0			(0xE24)
 #define SE_HW_PARAM_1			(0xE28)
+#define SE_HW_PARAM_2           (0xE2C)
 #define SE_DMA_GENERAL_CFG		(0xE30)
 #define SE_DMA_DEBUG_REG0		(0xE40)
 #define SLAVE_MODE_EN			(BIT(3))
@@ -146,6 +147,12 @@ struct se_geni_rsc {
 #define IO1_SEL_TX			BIT(2)
 #define IO2_DATA_IN_SEL_PAD2		(GENMASK(11, 10))
 #define IO3_DATA_IN_SEL_PAD2		BIT(15)
+#define OTHER_IO_OE         BIT(12)
+#define IO2_DATA_IN_SEL     BIT(11)
+#define RX_DATA_IN_SEL          BIT(8)
+#define IO_MACRO_IO3_SEL        (GENMASK(7, 6))
+#define IO_MACRO_IO2_SEL        BIT(5)
+#define IO_MACRO_IO0_SEL        BIT(0)
 
 /* GENI_FORCE_DEFAULT_REG fields */
 #define FORCE_DEFAULT	(BIT(0))
@@ -303,6 +310,9 @@ struct se_geni_rsc {
 #define RX_FIFO_DEPTH_MSK	(GENMASK(21, 16))
 #define RX_FIFO_DEPTH_SHFT	(16)
 
+/* SE_HW_PARAM_2 fields */
+#define GEN_HW_FSM_I2C      (BIT(15))
+
 /* SE_DMA_GENERAL_CFG */
 #define DMA_RX_CLK_CGC_ON	(BIT(0))
 #define DMA_TX_CLK_CGC_ON	(BIT(1))
@@ -345,7 +355,11 @@ struct se_geni_rsc {
 #define TX_EOT			(BIT(1))
 #define TX_SBE			(BIT(2))
 #define TX_RESET_DONE		(BIT(3))
-#define TX_GENI_CANCEL_IRQ	(BIT(14))
+#define TX_FLUSH_DONE       (BIT(4))
+#define TX_GENI_GP_IRQ      (GENMASK(12, 5))
+#define TX_GENI_CANCEL_IRQ  (BIT(14))
+#define TX_GENI_CMD_FAILURE (BIT(15))
+#define DMA_TX_ERROR_STATUS (TX_SBE | TX_GENI_CANCEL_IRQ | TX_GENI_CMD_FAILURE)
 
 /* SE_DMA_RX_IRQ_STAT Register fields */
 #define RX_DMA_DONE		(BIT(0))
@@ -353,9 +367,11 @@ struct se_geni_rsc {
 #define RX_SBE			(BIT(2))
 #define RX_RESET_DONE		(BIT(3))
 #define RX_FLUSH_DONE		(BIT(4))
-#define RX_GENI_GP_IRQ		(GENMASK(10, 5))
-#define RX_GENI_CANCEL_IRQ	(BIT(14))
-#define RX_GENI_GP_IRQ_EXT	(GENMASK(13, 12))
+#define RX_GENI_GP_IRQ      (GENMASK(12, 5))
+#define RX_GENI_CANCEL_IRQ  (BIT(14))
+#define RX_GENI_GP_IRQ_EXT  (GENMASK(13, 12))
+#define RX_GENI_CMD_FAILURE (BIT(15))
+#define DMA_RX_ERROR_STATUS (RX_SBE | RX_GENI_CANCEL_IRQ | RX_GENI_CMD_FAILURE)
 
 /* DMA DEBUG Register fields */
 #define DMA_TX_ACTIVE		(BIT(0))
@@ -840,12 +856,6 @@ int geni_se_iommu_free_buf(struct device *wrapper_dev, dma_addr_t *iova,
  */
 void geni_se_dump_dbg_regs(struct se_geni_rsc *rsc, void __iomem *base,
 				void *ipc);
-
-/*
- * This function is used to remove proxy ICC BW vote put from common driver
- * probe on behalf of earlycon usecase.
- */
-void geni_se_remove_earlycon_icc_vote(struct device *dev);
 #else
 static inline unsigned int geni_read_reg_nolog(void __iomem *base, int offset)
 {
