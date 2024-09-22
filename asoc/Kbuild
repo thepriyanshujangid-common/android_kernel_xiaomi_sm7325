@@ -79,6 +79,16 @@ else
 			export
 			INCS    +=  -include $(AUDIO_ROOT)/config/lahainaautoconf.h
 		endif
+		ifeq ($(CONFIG_MACH_XIAOMI_REDWOOD), y)
+			include $(AUDIO_ROOT)/config/redwoodaudio.conf
+			export
+			INCS    +=  -include $(AUDIO_ROOT)/config/redwoodaudioconf.h
+		endif
+		ifeq ($(CONFIG_MACH_XIAOMI_LISA), y)
+			include $(AUDIO_ROOT)/config/lisaaudio.conf
+			export
+			INCS    +=  -include $(AUDIO_ROOT)/config/lisaaudioconf.h
+		endif
 		ifeq ($(CONFIG_ARCH_LITO), y)
 			include $(AUDIO_ROOT)/config/litoauto.conf
 			export
@@ -291,6 +301,7 @@ KBUILD_EXTRA_SYMBOLS +=$(OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codec
 endif
 ifeq ($(KERNEL_BUILD), 1)
 	obj-y += codecs/
+	obj-$(CONFIG_MACH_XIAOMI) += iio/
 endif
 # Module information used by KBuild framework
 obj-$(CONFIG_SND_SOC_QDSP6V2) += platform_dlkm.o

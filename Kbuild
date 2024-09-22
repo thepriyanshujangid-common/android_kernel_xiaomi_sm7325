@@ -10,3 +10,4 @@ obj-y += asoc/codecs/wcd938x/
 obj-y += asoc/codecs/wcd937x/
 obj-y += asoc/codecs/aw882xx/
 obj-y += asoc/codecs/tfa98xx/
+obj-y += asoc/iio/
