@@ -85,6 +85,7 @@ static irqreturn_t fts_irq_handler(int irq, void *data);
 static int fts_ts_probe_delayed(struct fts_ts_data *fts_data);
 static int fts_ts_enable_reg(struct fts_ts_data *ts_data, bool enable);
 
+#ifdef CONFIG_DRM
 static void fts_ts_register_for_panel_events(struct device_node *dp,
 					struct fts_ts_data *ts_data)
 {
@@ -104,9 +105,10 @@ static void fts_ts_register_for_panel_events(struct device_node *dp,
 		return;
 	}
 
-	cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_PRIMARY,
-			PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH, active_panel,
-			&fts_ts_panel_notifier_callback, ts_data);
+	cookie = panel_event_notifier_register(
+			PANEL_EVENT_NOTIFICATION_PRIMARY,
+			PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH,
+			active_panel, &fts_ts_panel_notifier_callback, ts_data);
 	if (!cookie) {
 		pr_err("Failed to register for panel events\n");
 		return;
@@ -117,6 +119,7 @@ static void fts_ts_register_for_panel_events(struct device_node *dp,
 
 	ts_data->notifier_cookie = cookie;
 }
+#endif
 
 /*****************************************************************************
 *  Name: fts_wait_tp_to_valid
@@ -174,13 +177,11 @@ void fts_tp_state_recovery(struct fts_ts_data *ts_data)
 
 int fts_reset_proc(int hdelayms)
 {
-	FTS_DEBUG("tp reset");
 	gpio_direction_output(fts_data->pdata->reset_gpio, 0);
 	msleep(1);
 	gpio_direction_output(fts_data->pdata->reset_gpio, 1);
-	if (hdelayms) {
+	if (hdelayms)
 		msleep(hdelayms);
-	}
 
 	return 0;
 }
@@ -689,20 +690,13 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
 	int ret = 0;
 	struct fts_ts_platform_data *pdata = ts_data->pdata;
 
-#ifdef CONFIG_ARCH_QTI_VM
-	pdata->irq_gpio_flags = IRQF_TRIGGER_RISING | IRQF_ONESHOT;
-	FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
-	ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
-				pdata->irq_gpio_flags,
-				FTS_DRIVER_NAME, ts_data);
-#else
 	ts_data->irq = gpio_to_irq(pdata->irq_gpio);
 	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
 	ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
 				pdata->irq_gpio_flags,
 				FTS_DRIVER_NAME, ts_data);
-#endif
+
 	return ret;
 }
 
@@ -1007,6 +1001,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 			ret = fts_ts_enable_reg(ts_data, true);
 			if (ret)
 				FTS_ERROR("Touch reg enable failed\n");
+
 			ts_data->power_disabled = false;
 		}
 	} else {
@@ -1017,6 +1012,7 @@ static int fts_power_source_ctrl(struct fts_ts_data *ts_data, int enable)
 			ret = fts_ts_enable_reg(ts_data, false);
 			if (ret)
 				FTS_ERROR("Touch reg disable failed");
+
 			ts_data->power_disabled = true;
 		}
 	}
@@ -1347,72 +1343,6 @@ static void fts_ts_panel_notifier_callback(enum panel_event_notifier_tag tag,
 		break;
 	}
 }
-
-#elif defined(CONFIG_FB)
-static void fts_resume_work(struct work_struct *work)
-{
-	struct fts_ts_data *ts_data = container_of(work, struct fts_ts_data,
-					resume_work);
-
-	fts_ts_resume(ts_data->dev);
-}
-
-static int fb_notifier_callback(struct notifier_block *self,
-				unsigned long event, void *data)
-{
-	struct fb_event *evdata = data;
-	int *blank = NULL;
-	struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data,
-					fb_notif);
-
-	if (!(event == FB_EARLY_EVENT_BLANK || event == FB_EVENT_BLANK)) {
-		FTS_INFO("event(%lu) do not need process\n", event);
-		return 0;
-	}
-
-	blank = evdata->data;
-	FTS_INFO("FB event:%lu,blank:%d", event, *blank);
-	switch (*blank) {
-	case FB_BLANK_UNBLANK:
-		if (FB_EARLY_EVENT_BLANK == event) {
-			FTS_INFO("resume: event = %lu, not care\n", event);
-		} else if (FB_EVENT_BLANK == event) {
-			queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
-		}
-		break;
-
-	case FB_BLANK_POWERDOWN:
-		if (FB_EARLY_EVENT_BLANK == event) {
-			cancel_work_sync(&fts_data->resume_work);
-			fts_ts_suspend(ts_data->dev);
-		} else if (FB_EVENT_BLANK == event) {
-			FTS_INFO("suspend: event = %lu, not care\n", event);
-		}
-		break;
-
-	default:
-		FTS_INFO("FB BLANK(%d) do not need process\n", *blank);
-		break;
-	}
-
-	return 0;
-}
-#elif defined(CONFIG_HAS_EARLYSUSPEND)
-static void fts_ts_early_suspend(struct early_suspend *handler)
-{
-	struct fts_ts_data *ts_data = container_of(handler, struct fts_ts_data,
-					early_suspend);
-
-	fts_ts_suspend(ts_data->dev);
-}
-
-static void fts_ts_late_resume(struct early_suspend *handler)
-{
-	struct fts_ts_data *ts_data = container_of(handler, struct fts_ts_data,
-					early_suspend);
-
-	fts_ts_resume(ts_data->dev);
-}
 #endif
 
 static int fts_ts_probe_delayed(struct fts_ts_data *fts_data)
@@ -1566,7 +1496,9 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 	if (ts_data->ts_workqueue)
 		INIT_WORK(&ts_data->resume_work, fts_resume_work);
 
+#ifdef CONFIG_DRM
 	fts_ts_register_for_panel_events(ts_data->dev->of_node, ts_data);
+#endif
 
 	FTS_FUNC_EXIT();
 	return 0;
@@ -1672,14 +1604,14 @@ static int fts_ts_suspend(struct device *dev)
 		if (ret < 0)
 			FTS_ERROR("set TP to sleep mode fail, ret=%d", ret);
 
-		if (!ts_data->ic_info.is_incell) {
 #if FTS_POWER_SOURCE_CUST_EN
+		if (!ts_data->ic_info.is_incell) {
 			ret = fts_power_source_suspend(ts_data);
 			if (ret < 0) {
 				FTS_ERROR("power enter suspend fail");
 			}
-#endif
 		}
+#endif
 	}
 
 	fts_release_all_finger();
@@ -1739,12 +1671,12 @@ static int fts_ts_check_dt(struct device_node *np)
 	struct device_node *node;
 	struct drm_panel *panel;
 
-	count = of_count_phandle_with_args(np, "panel", NULL);
+	count = of_count_phandle_with_args(np, "qcom,display-panels", NULL);
 	if (count <= 0)
 		return 0;
 
 	for (i = 0; i < count; i++) {
-		node = of_parse_phandle(np, "panel", i);
+		node = of_parse_phandle(np, "qcom,display-panels", i);
 		panel = of_drm_find_panel(node);
 		of_node_put(node);
 		if (!IS_ERR(panel)) {
@@ -1801,6 +1733,13 @@ out:
 	return ret;
 }
 
+static const struct of_device_id fts_dt_match[] = {
+	{.compatible = "focaltech,fts_ts", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, fts_dt_match);
+
+#if FTS_SUPPORT_I2C
 static int fts_ts_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	int ret = 0;
@@ -1861,11 +1800,6 @@ static const struct i2c_device_id fts_ts_i2c_id[] = {
 	{FTS_DRIVER_NAME, 0},
 	{},
 };
-static const struct of_device_id fts_dt_match[] = {
-	{.compatible = "focaltech,fts_ts", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, fts_dt_match);
 
 static struct i2c_driver fts_ts_i2c_driver = {
 	.probe = fts_ts_i2c_probe,
@@ -1895,6 +1829,7 @@ static void __exit fts_ts_i2c_exit(void)
 {
 	i2c_del_driver(&fts_ts_i2c_driver);
 }
+#endif
 
 static int fts_ts_spi_probe(struct spi_device *spi)
 {
@@ -1957,7 +1892,7 @@ static int fts_ts_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id fts_ts_spi_id[] = {
-	{FTS_DRIVER_NAME, 0},
+	{ FTS_DRIVER_NAME, 0 },
 	{},
 };
 
@@ -1997,9 +1932,11 @@ static int __init fts_ts_init(void)
 {
 	int ret = 0;
 
+#if FTS_SUPPORT_I2C
 	ret = fts_ts_i2c_init();
 	if (ret)
 		FTS_ERROR("Focaltech I2C driver init failed!");
+#endif
 
 	ret = fts_ts_spi_init();
 	if (ret)
@@ -2007,18 +1944,15 @@ static int __init fts_ts_init(void)
 
 	return ret;
 }
+late_initcall(fts_ts_init);
 
 static void __exit fts_ts_exit(void)
 {
+#if FTS_SUPPORT_I2C
 	fts_ts_i2c_exit();
+#endif
 	fts_ts_spi_exit();
 }
-
-#ifdef CONFIG_ARCH_QTI_VM
-module_init(fts_ts_init);
-#else
-late_initcall(fts_ts_init);
-#endif
 module_exit(fts_ts_exit);
 
 MODULE_AUTHOR("FocalTech Driver Team");

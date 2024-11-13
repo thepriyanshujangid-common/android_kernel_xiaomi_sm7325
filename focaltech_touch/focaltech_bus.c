@@ -15,54 +15,18 @@
  *
  */
 
-/************************************************************************
-*
-* File Name: focaltech_i2c.c
-*
-* Author: Focaltech Driver Team
-*
-* Created: 2016-08-04
-*
-* Abstract: i2c communication with TP
-*
-* Version: v1.0
-*
-* Revision History:
-*
-************************************************************************/
-
-/*****************************************************************************
-* Included header files
-*****************************************************************************/
 #include "focaltech_core.h"
 #include <linux/pm_runtime.h>
 
-/*****************************************************************************
-* Private constant and macro definitions using #define
-*****************************************************************************/
+static struct fts_ts_data *ts_data = NULL;
+
+#if FTS_SUPPORT_I2C
+/*
+ * I2C support
+ */
 #define I2C_RETRY_NUMBER                    3
 #define I2C_BUF_LENGTH                      256
 
-/*****************************************************************************
-* Private enumerations, structures and unions using typedef
-*****************************************************************************/
-
-/*****************************************************************************
-* Static variables
-*****************************************************************************/
-static struct fts_ts_data *ts_data;
-
-/*****************************************************************************
-* Global variable or extern global variabls/functions
-*****************************************************************************/
-
-/*****************************************************************************
-* Static function prototypes
-*****************************************************************************/
-
-/*****************************************************************************
-* functions body
-*****************************************************************************/
 static int fts_i2c_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
 {
 	int ret = 0;
@@ -178,9 +142,10 @@ static int fts_i2c_exit(struct fts_ts_data *ts_data)
 	FTS_FUNC_EXIT();
 	return 0;
 }
+#endif
 
 /*****************************************************************************
- * Private constant and macro definitions using #define
+ * SPI
  ****************************************************************************/
 #define SPI_RETRY_NUMBER            3
 #define CS_HIGH_DELAY               150 /* unit: us */
@@ -197,7 +162,7 @@ static int fts_i2c_exit(struct fts_ts_data *ts_data)
  * functions body
  ****************************************************************************/
 /* spi interface */
-static int fts_spi_transfer(u8 *tx_buf, u8 *rx_buf, u32 len)
+static inline int fts_spi_transfer(u8 *tx_buf, u8 *rx_buf, u32 len)
 {
 	int ret = 0;
 	struct spi_device *spi = fts_data->spi;
@@ -220,7 +185,7 @@ static int fts_spi_transfer(u8 *tx_buf, u8 *rx_buf, u32 len)
 	return ret;
 }
 
-static void crckermit(u8 *data, u32 len, u16 *crc_out)
+static inline void crckermit(u8 *data, u32 len, u16 *crc_out)
 {
 	u32 i = 0;
 	u32 j = 0;
@@ -239,7 +204,7 @@ static void crckermit(u8 *data, u32 len, u16 *crc_out)
 	*crc_out = crc;
 }
 
-static int rdata_check(u8 *rdata, u32 rlen)
+static inline int rdata_check(u8 *rdata, u32 rlen)
 {
 	u16 crc_calc = 0;
 	u16 crc_read = 0;
@@ -252,11 +217,10 @@ static int rdata_check(u8 *rdata, u32 rlen)
 	return 0;
 }
 
-static int fts_spi_write(u8 *writebuf, u32 writelen)
+static inline int fts_spi_write(u8 *writebuf, u32 writelen)
 {
 	int ret = 0;
 	int i = 0;
-	struct fts_ts_data *ts_data = fts_data;
 	u8 *txbuf = NULL;
 	u8 *rxbuf = NULL;
 	u32 txlen = 0;
@@ -327,7 +291,7 @@ err_write:
 	return ret;
 }
 
-static int fts_spi_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
+static inline int fts_spi_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
 {
 	int ret = 0;
 	int i = 0;
@@ -450,6 +414,7 @@ static int fts_spi_exit(struct fts_ts_data *ts_data)
 	return 0;
 }
 
+#if FTS_SUPPORT_I2C
 int fts_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
 {
 	int ret = 0;
@@ -473,6 +438,17 @@ int fts_write(u8 *writebuf, u32 writelen)
 
 	return ret;
 }
+#else
+int fts_read(u8 *cmd, u32 cmdlen, u8 *data, u32 datalen)
+{
+	return fts_spi_read(cmd, cmdlen, data, datalen);
+}
+
+int fts_write(u8 *writebuf, u32 writelen)
+{
+	return fts_spi_write(writebuf, writelen);
+}
+#endif
 
 int fts_read_reg(u8 addr, u8 *value)
 {
@@ -491,17 +467,20 @@ int fts_write_reg(u8 addr, u8 value)
 int fts_bus_init(struct fts_ts_data *_ts_data)
 {
 	ts_data = _ts_data;
-
+#if FTS_SUPPORT_I2C
 	if (ts_data->bus_type == BUS_TYPE_I2C)
 		return fts_i2c_init(ts_data);
+#endif
 
 	return fts_spi_init(ts_data);
 }
 
 int fts_bus_exit(struct fts_ts_data *ts_data)
 {
+#if FTS_SUPPORT_I2C
 	if (ts_data->bus_type == BUS_TYPE_I2C)
 		return fts_i2c_exit(ts_data);
+#endif
 
 	return fts_spi_exit(ts_data);
 }

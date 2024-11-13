@@ -219,6 +219,11 @@
 #define FTS_GET_MODULE_NUM                      0
 
 /*
+ * FTS ENABLE I2C support
+ */
+#define FTS_SUPPORT_I2C							0
+
+/*
  * module_id: mean vendor_id generally, also maybe gpio or lcm_id...
  * If means vendor_id, the FTS_MODULE_ID = PANEL_ID << 8 + VENDOR_ID
  * FTS_GET_MODULE_NUM == 0/1, no check module id, you may ignore them
