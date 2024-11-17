@@ -1,0 +1,3 @@
+[submodule "new"]
+	path = asoc/codecs/aw882xx
+	url = https://github.com/Divyanshu-Modi/android_driver_awinic_aw882xx.git
