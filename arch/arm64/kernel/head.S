@@ -473,6 +473,13 @@ SYM_DATA_END(kimage_vaddr)
 EXPORT_SYMBOL(kimage_vaddr)
 	.popsection
 
+	.pushsection ".rodata", "a"
+SYM_DATA_START(kimage_vaddr)
+	.quad		_text - TEXT_OFFSET
+SYM_DATA_END(kimage_vaddr)
+EXPORT_SYMBOL(kimage_vaddr)
+	.popsection
+
 /*
  * end early head section, begin head code that is also used for
  * hotplug and needs to have the same protections as the text region
