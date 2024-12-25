@@ -409,7 +409,7 @@ void split_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *new,
 /*
  * Sets the correct padding bits / flags for a VMA split.
  */
-unsigned long vma_pad_fixup_flags(struct vm_area_struct *vma,
+/*unsigned long vma_pad_fixup_flags(struct vm_area_struct *vma,
 				  unsigned long newflags)
 {
 	if (newflags & VM_PAD_MASK)
@@ -417,7 +417,7 @@ unsigned long vma_pad_fixup_flags(struct vm_area_struct *vma,
 	else
 		return newflags;
 }
-
+*/
 /*
  * Merging of padding VMAs is uncommon, as padding is only allowed
  * from the linker context.
