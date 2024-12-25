@@ -466,19 +466,21 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	b	start_kernel
 SYM_FUNC_END(__primary_switched)
 
-	.pushsection ".rodata", "a"
-SYM_DATA_START(kimage_vaddr)
-	.quad		_text
-SYM_DATA_END(kimage_vaddr)
-EXPORT_SYMBOL(kimage_vaddr)
-	.popsection
-
-	.pushsection ".rodata", "a"
-SYM_DATA_START(kimage_vaddr)
-	.quad		_text - TEXT_OFFSET
-SYM_DATA_END(kimage_vaddr)
-EXPORT_SYMBOL(kimage_vaddr)
-	.popsection
+#ifdef CONFIG_USE_TEXT_OFFSET
+    .pushsection ".rodata", "a"
+    SYM_DATA_START(kimage_vaddr)
+        .quad   _text - TEXT_OFFSET
+    SYM_DATA_END(kimage_vaddr)
+    EXPORT_SYMBOL(kimage_vaddr)
+    .popsection
+#else
+    .pushsection ".rodata", "a"
+    SYM_DATA_START(kimage_vaddr)
+        .quad   _text
+    SYM_DATA_END(kimage_vaddr)
+    EXPORT_SYMBOL(kimage_vaddr)
+    .popsection
+#endif
 
 /*
  * end early head section, begin head code that is also used for
